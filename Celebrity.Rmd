@@ -1,0 +1,122 @@
+---
+title: "Celebrities"
+author: "Duncan Gates"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  rmdformats::downcute: 
+    self_contained: true # Other options are downcute, material, readthedown, html_clean, html_docco, lockdown, https://github.com/juba/rmdformats
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: tango
+    number_sections: true
+---
+
+```{r setup, message = F}
+# Notice the message = F to prevent extra messages from loading
+library(tidyverse)
+library(readr)
+```
+
+# Reading in the Initial Data
+
+```{r message = F}
+celebs <- read_csv("/Users/dunk/Classes/NMC 245/forbes_celebrity_100.csv") # Where I happenen to have the data frame
+d <- tibble(Name = "Jason Derulo",
+       Category = "Musician")
+celebs <- bind_rows(celebs, d) # Simple demonstration of how bind rows works
+# write_csv(celebs, "/Users/dunk/Classes/NMC 245/forbes_celebrity_100.csv")
+```
+
+# Scraping Wikipedia for more Data (Bigger Data is Better Data)
+
+```{r}
+Instagram <- xml2::read_html("https://en.wikipedia.org/wiki/List_of_most-followed_Instagram_accounts") #url
+Instagram <- Instagram %>%
+  rvest::html_node(xpath = '//*[@id="mw-content-text"]/div[1]/table[1]') %>% # Scrape first table on wikipedia instagram page
+  rvest::html_table() %>% # Use rvest to read html table
+  select(Owner) %>% # Only take column by ranks
+  mutate(Category = "Instagram") %>% # Make a new column full of Instagram for later merge
+  rename(Name = Owner) # Rename here so I don't have to later for binding rows
+
+YouTube <- xml2::read_html("https://en.wikipedia.org/wiki/List_of_most-subscribed_YouTube_channels") #url
+YouTube <- YouTube %>%
+  rvest::html_node(xpath = '//*[@id="mw-content-text"]/div[1]/table[1]') %>%
+  rvest::html_table(fill = T) %>% 
+  select(Channel) %>% 
+  mutate(Category = "YouTube") %>%
+  rename(Name = Channel) %>%
+  mutate(Name = substr(Name, 1, regexpr("\\[", Name)-1)) %>%
+  slice(-51)
+
+Twitter <- xml2::read_html("https://en.wikipedia.org/wiki/List_of_most-followed_Twitter_accounts") #url
+Twitter <- Twitter %>%
+  rvest::html_node(xpath = '//*[@id="mw-content-text"]/div[1]/table[1]') %>%
+  rvest::html_table() %>%
+  select(Owner) %>% 
+  mutate(Category = "Twitter") %>%
+  rename(Name = Owner)
+
+socialmedia_df <- bind_rows(Twitter, Instagram, YouTube) # For making a social media network
+biggerdf <- bind_rows(celebs, socialmedia_df) # For seeing how media has changed our celebrity landscape
+```
+
+
+# Starting Networking
+
+First let's load our libraries
+
+```{r message = F}
+library(network)
+library(igraph)
+
+
+```
+
+## Social Media Network
+
+One way to do it
+
+```{r message = F}
+el <- as.matrix(socialmedia_df) # Loading edgelist as a two column matrix.
+g <- graph.edgelist(el, directed=TRUE) # Converting into an igraph object
+#vertex_attr(g, "name") # The data is all still there!
+make_graph(g, "Frucht")
+deg <- degree(g)
+clo <- closeness(g)
+bet <- betweenness(g)
+eig <- eigen_centrality(g) # All the different centralities of "g"
+name <- get.vertex.attribute(g, "name") 
+table <- cbind(name, deg, clo, bet, eig) # Make a table out of all of these
+table %>% kableExtra::kbl() # This needs to be cleaned up
+```
+
+Another way to do it
+
+```{r}
+socialmedia_df <- socialmedia_df %>% rename(nodes = Category)
+net <- graph_from_data_frame(d = socialmedia_df, vertices = nodes, directed = T)
+```
+
+
+## Has Social Media Changed Celebrity Connections?
+
+Probably not they're a bunch of rich assholes
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
